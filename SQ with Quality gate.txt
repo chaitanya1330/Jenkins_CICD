@@ -1,0 +1,62 @@
+pipeline {
+    agent any
+    
+    // environment {
+    //     // SONARQUBE_HOME = tool 'sonar-qube'
+    //     SONARQUBE_TOKEN = credentials('sqp_5c81c840073576c719b724f5867b66c36f681d60')
+    //     SONARQUBE_PROJECT_KEY = 'new_chatapp'
+    // }
+
+
+
+    stages {
+        stage('git') {
+            steps {
+                // Get some code from a GitHub repository
+                git url: 'https://github.com/chaitanya1330/new_chatapp', branch: 'master'
+            }
+        }
+----------------------------------------------------------------------------------------------------------------------------------
+        
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonar-qube'
+                    withSonarQubeEnv('sonar-server') {
+                        // Run the SonarQube Scanner with project key and authentication token
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.login=sqp_6b5e8f3c7fbea2004a8d59b27baad19c284b1245 -Dsonar.projectKey=new_chatapp"
+                    }
+                }
+            }
+        }
+
+------------------------------------------------------------------------------------------------------------------------------------
+        
+        stage("Quality Gate") {
+            steps {
+              timeout(time: 1, unit: 'HOURS') {
+                waitForQualityGate abortPipeline: true
+              }
+            }
+          }
+------------------------------------------------------------------------------------------------------------------------------
+        
+        stage('build'){
+            steps {
+                sshagent(['root']) {
+                    sh "scp -r -o StrictHostKeyChecking=no /var/lib/jenkins/workspace/jenkins-job/* root@172.31.34.32:/root/new_chatapp"
+                    sh 'ssh -i /var/lib/jenkins/jenkin.pem root@172.31.34.32 "bash /root/new_chatapp/scripts/stop.sh"'
+                }
+            }
+        }
+        
+        stage('deploy'){
+            steps{
+                sshagent(['root']) {
+                    sh 'ssh -i /var/lib/jenkins/jenkin.pem root@172.31.34.32 "bash /root/new_chatapp/scripts/start.sh"'
+                }
+            }
+        }
+    }
+}
+

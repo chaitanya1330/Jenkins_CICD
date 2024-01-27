@@ -1,0 +1,31 @@
+pipeline {
+    agent any
+
+
+    stages {
+        stage('git') {
+            steps {
+                // Get some code from a GitHub repository
+                git url: 'https://github.com/chaitanya1330/new_chatapp', branch: 'master'
+            }
+        }
+        
+        stage('build'){
+            steps {
+                sshagent(['root']) {
+                    sh "scp -r -o StrictHostKeyChecking=no /var/lib/jenkins/workspace/jenkins-job/* root@172.31.34.32:/root/new_chatapp"
+                    sh 'ssh -i /var/lib/jenkins/jenkin.pem root@172.31.34.32 "bash /root/new_chatapp/scripts/stop.sh"'
+                }
+            }
+        }
+        
+        stage('deploy'){
+            steps{
+                sshagent(['root']) {
+                    sh 'ssh -i /var/lib/jenkins/jenkin.pem root@172.31.34.32 "bash /root/new_chatapp/scripts/start.sh"'
+                }
+            }
+        }
+    }
+}
+
